@@ -710,7 +710,7 @@ if __name__ == "__main__":
     #Start thread outputing stream
     streamViewer = VideoShow(image_width,image_height, cameraServer, frame=img).start()
     #cap.autoExpose=True;
-    tape = False
+    tape = True
     fps = FPS().start()
     #TOTAL_FRAMES = 200;
     # loop forever
@@ -732,19 +732,19 @@ if __name__ == "__main__":
             cap.autoExpose = True
             processed = frame
         else:
-            # Checks if you just want camera for Tape processing , False by default
-            if(networkTable.getBoolean("Tape", False)):
-                #Lowers exposure to 0
+            # # Checks if you just want camera for Tape processing , False by default
+            # if(networkTable.getBoolean("Tape", False)):
+            #     #Lowers exposure to 0
                 cap.autoExpose = False
                 boxBlur = blurImg(frame, green_blur)
                 threshold = threshold_video(lower_green, upper_green, boxBlur)
                 processed = findTargets(frame, threshold)
-            else:
-                # Checks if you just want camera for Cargo processing, by dent of everything else being false, true by default
-                cap.autoExpose = True
-                boxBlur = blurImg(frame, orange_blur)
-                threshold = threshold_video(lower_orange, upper_orange, boxBlur)
-                processed = findCargo(frame, threshold)
+            # else:
+            # Checks if you just want camera for Cargo processing, by dent of everything else being false, true by default
+            # cap.autoExpose = True
+            # boxBlur = blurImg(frame, orange_blur)
+            # threshold = threshold_video(lower_orange, upper_orange, boxBlur)
+            # processed = findCargo(frame, threshold)
         #Puts timestamp of camera on netowrk tables
         networkTable.putNumber("VideoTimestamp", timestamp)
         streamViewer.frame = processed
