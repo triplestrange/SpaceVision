@@ -59,14 +59,16 @@ class FPS:
 	def fps(self):
 		# compute the (approximate) frames per second
 		return self._numFrames / self.elapsed()
-#class that runs separate thread for showing video,
+
+
+# class that runs separate thread for showing video,
 class VideoShow:
     """
     Class that continuously shows a frame using a dedicated thread.
     """
 
-    def __init__(self, imgWidth, imgHeight, cameraServer, frame=None):
-        self.outputStream = cameraServer.putVideo("stream", imgWidth, imgHeight)
+    def __init__(self, imgWidth, imgHeight, cameraServer, frame=None, name='stream'):
+        self.outputStream = cameraServer.putVideo(name, imgWidth, imgHeight)
         self.frame = frame
         self.stopped = False
 
@@ -80,10 +82,10 @@ class VideoShow:
 
     def stop(self):
         self.stopped = True
+
     def notifyError(self, error):
         self.outputStream.notifyError(error)
 
-# Class that runs a separate thread for reading  camera server also controlling exposure.
 class WebcamVideoStream:
     def __init__(self, camera, cameraServer, frameWidth, frameHeight, name="WebcamVideoStream"):
         # initialize the video camera stream and read the first frame
@@ -98,7 +100,7 @@ class WebcamVideoStream:
         #Make a blank image to write on
         self.img = np.zeros(shape=(frameWidth, frameHeight, 3), dtype=np.uint8)
         #Gets the video
-        self.stream = cameraServer.getVideo()
+        self.stream = cameraServer.getVideo(camera = camera)
         (self.timestamp, self.img) = self.stream.grabFrame(self.img)
 
         # initialize the thread name
@@ -123,13 +125,11 @@ class WebcamVideoStream:
                 return
             #Boolean logic we don't keep setting exposure over and over to the same value
             if self.autoExpose:
-                if(self.autoExpose != self.prevValue):
-                    self.prevValue = self.autoExpose
-                    self.webcam.setExposureAuto()
+
+                self.webcam.setExposureAuto()
             else:
-                if (self.autoExpose != self.prevValue):
-                    self.prevValue = self.autoExpose
-                    self.webcam.setExposureManual(0)
+
+                self.webcam.setExposureManual(0)
             #gets the image and timestamp from cameraserver
             (self.timestamp, self.img) = self.stream.grabFrame(self.img)
 
@@ -142,7 +142,6 @@ class WebcamVideoStream:
         self.stopped = True
     def getError(self):
         return self.stream.getError()
-
 ###################### PROCESSING OPENCV ################################
 
 #Angles in radians
@@ -310,8 +309,11 @@ def findBall(contours, image, centerX, centerY):
                     cv2.circle(image, center, radius, (23, 184, 80), 1)
 
                     # Appends important info to array
-                    if [cx, cy, cnt] not in biggestCargo:
-                         biggestCargo.append([cx, cy, cnt])
+                    if not biggestCargo:
+                        biggestCargo.append([cx, cy, cnt])
+                    elif [cx, cy, cnt] not in biggestCargo:
+                        biggestCargo.append([cx, cy, cnt])
+
 
 
 
@@ -424,8 +426,10 @@ def findTape(contours, image, centerX, centerY):
                     cv2.circle(image, center, radius, (23, 184, 80), 1)
 
                     # Appends important info to array
-                    if [cx, cy, rotation, cnt] not in biggestCnts:
-                         biggestCnts.append([cx, cy, rotation, cnt])
+                    if not biggestCnts:
+                         biggestCnts.append([cx, cy, rotation])
+                    elif [cx, cy, rotation] not in biggestCnts:
+                         biggestCnts.append([cx, cy, rotation])
 
 
         # Sorts array based on coordinates (leftmost to rightmost) to make sure contours are adjacent
@@ -459,7 +463,9 @@ def findTape(contours, image, centerX, centerY):
                 #Angle from center of camera to target (what you should pass into gyro)
                 yawToTarget = calculateYaw(centerOfTarget, centerX, H_FOCAL_LENGTH)
                 #Make sure no duplicates, then append
-                if [centerOfTarget, yawToTarget] not in targets:
+                if not targets:
+                    targets.append([centerOfTarget, yawToTarget])
+                elif [centerOfTarget, yawToTarget] not in targets:
                     targets.append([centerOfTarget, yawToTarget])
     #Check if there are targets seen
     if (len(targets) > 0):
@@ -534,7 +540,7 @@ def calculateDistance(heightOfCamera, heightOfTarget, pitch):
 # Link to further explanation: https://docs.google.com/presentation/d/1ediRsI-oR3-kwawFJZ34_ZTlQS2SDBLjZasjzZ-eXbQ/pub?start=false&loop=false&slide=id.g12c083cffa_0_298
 def calculateYaw(pixelX, centerX, hFocalLength):
     yaw = math.degrees(math.atan((pixelX - centerX) / hFocalLength))
-    return round(yaw)
+    return round(yaw+14)
 
 
 # Link to further explanation: https://docs.google.com/presentation/d/1ediRsI-oR3-kwawFJZ34_ZTlQS2SDBLjZasjzZ-eXbQ/pub?start=false&loop=false&slide=id.g12c083cffa_0_298
@@ -715,36 +721,46 @@ if __name__ == "__main__":
     #TOTAL_FRAMES = 200;
     # loop forever
     while True:
+
+        # So whatever camera you want you just change 0 to 1 or 1 to 0
+        # It default to the first (0th) camera
+        webcam = cameras[int(networkTable.getNumber("WhichCamera", 0))]
+        cameraServer = streams[int(networkTable.getNumber("WhichCamera", 0))]
+        # Sets video reader to read from new webcam and cameraServer
+        cap.webcam = webcam
+        cap.stream = cameraServer.getVideo(camera = webcam)
+
         # Tell the CvSink to grab a frame from the camera and put it
         # in the source image.  If there is an error notify the output.
         timestamp, img = cap.read()
+
         #Uncomment if camera is mounted upside down
-        frame = flipImage(img)
+        #frame = flipImage(img)
         #Comment out if camera is mounted upside down
-        #frame = img
+        frame = img
         if timestamp == 0:
             # Send the output the error.
             streamViewer.notifyError(cap.getError());
             # skip the rest of the current iteration
             continue
         #Checks if you just want camera for driver (No processing), False by default
-        if(networkTable.getBoolean("Driver", False)):
-            cap.autoExpose = True
-            processed = frame
-        else:
-            # # Checks if you just want camera for Tape processing , False by default
-            # if(networkTable.getBoolean("Tape", False)):
-            #     #Lowers exposure to 0
-                cap.autoExpose = False
-                boxBlur = blurImg(frame, green_blur)
-                threshold = threshold_video(lower_green, upper_green, boxBlur)
-                processed = findTargets(frame, threshold)
+        # if(networkTable.getBoolean("Driver", False)):
+        #     cap.autoExpose = True
+        #     processed = frame
+        # else:
+            # Checks if you just want camera for Tape processing , False by default
+            # if(networkTable.getBoolean("Tape", True)):
+                #Lowers exposure to 0
+        cap.autoExpose = False
+        boxBlur = blurImg(frame, green_blur)
+        threshold = threshold_video(lower_green, upper_green, boxBlur)
+        processed = findTargets(frame, threshold)
             # else:
-            # Checks if you just want camera for Cargo processing, by dent of everything else being false, true by default
-            # cap.autoExpose = True
-            # boxBlur = blurImg(frame, orange_blur)
-            # threshold = threshold_video(lower_orange, upper_orange, boxBlur)
-            # processed = findCargo(frame, threshold)
+            #     # Checks if you just want camera for Cargo processing, by dent of everything else being false, true by default
+            #     cap.autoExpose = True
+            #     boxBlur = blurImg(frame, orange_blur)
+            #     threshold = threshold_video(lower_orange, upper_orange, boxBlur)
+            #     processed = findCargo(frame, threshold)
         #Puts timestamp of camera on netowrk tables
         networkTable.putNumber("VideoTimestamp", timestamp)
         streamViewer.frame = processed
