@@ -540,7 +540,7 @@ def calculateDistance(heightOfCamera, heightOfTarget, pitch):
 # Link to further explanation: https://docs.google.com/presentation/d/1ediRsI-oR3-kwawFJZ34_ZTlQS2SDBLjZasjzZ-eXbQ/pub?start=false&loop=false&slide=id.g12c083cffa_0_298
 def calculateYaw(pixelX, centerX, hFocalLength):
     yaw = math.degrees(math.atan((pixelX - centerX) / hFocalLength))
-    return round(yaw+14)
+    return round(yaw)
 
 
 # Link to further explanation: https://docs.google.com/presentation/d/1ediRsI-oR3-kwawFJZ34_ZTlQS2SDBLjZasjzZ-eXbQ/pub?start=false&loop=false&slide=id.g12c083cffa_0_298
@@ -724,8 +724,8 @@ if __name__ == "__main__":
 
         # So whatever camera you want you just change 0 to 1 or 1 to 0
         # It default to the first (0th) camera
-        webcam = cameras[int(networkTable.getNumber("WhichCamera", 0))]
-        cameraServer = streams[int(networkTable.getNumber("WhichCamera", 0))]
+        webcam = cameras[int(networkTable.getNumber("WhichCamera", 2))]
+        cameraServer = streams[int(networkTable.getNumber("WhichCamera", 2))]
         # Sets video reader to read from new webcam and cameraServer
         cap.webcam = webcam
         cap.stream = cameraServer.getVideo(camera = webcam)
@@ -773,8 +773,3 @@ if __name__ == "__main__":
     fps.stop()
     print("[INFO] elasped time: {:.2f}".format(fps.elapsed()))
     print("[INFO] approx. FPS: {:.2f}".format(fps.fps()))
-
-
-
-
-
